@@ -255,44 +255,6 @@ def matrix_mix(vec):
 def matrix_Unmix(vec):
     return transpose([ [ xor([(vec[z][y],UnMixMatrix[x][z]) for z in range(4)]) for x in range(4)] for y in range(4)],4)
 
-# def rotateRight(row, n):
-#     return row[:-n] + row[n:]
-#
-# def InvShiftRows(state):
-#     return [rotateRight(state[x],x) for x in range(4)]
-#
-# def InvSubBytes(state):
-#     return state
-#
-# def AddRoundKey(state,key):
-#     return state
-#
-# def InvMixColumns(state):
-#     return state
-
-
-# def aes_decrypt(vec, key):
-#     key = expandKey(key)
-#     first = len(key)-16
-#
-#     state = transpose( blockSplit(vec,4), 4)
-#
-#     # Perform the necessary number of rounds. The round key is added first.
-#     # The last round does not perform the MixColumns step.
-#
-#     state = AddRoundKey(state,key[first:first+16])
-#
-#     for pos in range(first-16,-16,-16):
-#         state = InvShiftRows(state)
-#         state = InvSubBytes(state)
-#         state = AddRoundKey(state,key[pos:pos+16])
-#         if pos > 0:
-#             state = InvMixColumns(state)
-#
-#     state = transpose(state, 4)
-#     state = [y for x in state for y in x]
-#
-
 def pad(vec, mod=16):
     if mod==0: return vec
     padlen = mod - len(vec) % mod;
@@ -306,12 +268,15 @@ def unpad(vec):
         raise Exception("Pad values not consistent")
     return vec[:-padlen]
 
-def aes_decrypt(enc, password):
+def aes_decrypt(enc, password, iv=None):
     enc = aes_bin2matrix(enc)
     roundkey = aes_bin2matrix(expandKey(password))
+    if iv: iv = aes_bin2matrix(iv)[0]
 
     vec = []
+    iv_next = None
     for state in enc:
+        if iv: iv_next = state
         for i in range(len(roundkey)-1,-1,-1):
             key = roundkey[i]
             state = matrix_xor(state, key)
@@ -320,15 +285,20 @@ def aes_decrypt(enc, password):
             if i > 0:
                 state = matrix_rotateRight(state)
                 state = matrix_InvSubst(state)
+        if iv:
+            state = matrix_xor(state, iv)
+            iv = iv_next
         vec += [ x for y in transpose(state) for x in y ]
     return unpad(vec)
 
-def aes_encrypt(plaintext, password):
+def aes_encrypt(plaintext, password, iv=None):
     plaintext = aes_bin2matrix(pad(plaintext,16))
     roundkey = aes_bin2matrix(expandKey(password))
+    if iv: iv = aes_bin2matrix(iv)[0]
 
     vec = []
     for state in plaintext:
+        if iv: state = matrix_xor(state, iv)
         for i in range(len(roundkey)):
             if i > 0:
                 state = matrix_Subst(state)
@@ -337,6 +307,7 @@ def aes_encrypt(plaintext, password):
                 state = matrix_mix(state)
             key = roundkey[i]
             state = matrix_xor(state, key)
+        if iv: iv = state
         vec += [ x for y in transpose(state) for x in y ]
     return vec
 
