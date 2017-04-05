@@ -44,6 +44,9 @@ def find_byte_key(bin):
 def enc_xor(msg, key):
     return [x^y for x,y in zip(msg, itertools.cycle(key))]
 
+def matrix_xor(msg, key):
+    return [enc_xor(x,y) for x,y in zip(msg, itertools.cycle(key))]
+
 #____________________________________________________________________________ _
 #                                                                       CRACK
 #_____________________
@@ -62,17 +65,23 @@ def likely_key_sizes(enc, min_len=1, max_len=40):
     dists = [ (hamming_distance(enc[:keysize],enc[keysize:keysize*2])*1.0/keysize, keysize) for keysize in range(min_len,max_len+1) ]
     dists.sort()
     return [x[1] for x in dists]
+
+def blockSplit(vec, size=16):
+    return  [vec[size*i:size*(i+1)] for i in range((len(vec)+size-1)/size)]
+
+def transpose(blocks, size=16):
+    return [ [a for a in [x[y] if len(x)>y else None for x in blocks] if a is not None] for y in range(size)]
 #_____________________
 def likely_keys(enc, min_len=1, max_len=40):
     """Find likely keys in a range of sizes for a given xor-encrypted binary"""
-    
+
     # Probable key lengths in order of decreasing probability
     sizes = likely_key_sizes(enc)
 
     candidates = []
     for size in sizes:
-        blocks = [enc[size*i:size*(i+1)] for i in range((len(enc)+size-1)/size)]
-        transposed = [ [a for a in [x[y] if len(x)>y else -1 for x in blocks] if a>= 0] for y in range(size)]
+        blocks = blockSplit(enc, size)
+        transposed = transpose(blocks, size)
         key = [ find_byte_key(stripe)[0][1] for stripe in transposed]
         candidates += [(score_readable(enc_xor(enc, key)), key)]
     candidates.sort(reverse=True)
