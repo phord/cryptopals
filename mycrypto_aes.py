@@ -293,8 +293,9 @@ def matrix_Unmix(vec):
 #     state = [y for x in state for y in x]
 #
 
-def pad(vec, mod):
-    padlen = 16 - len(vec) % mod;
+def pad(vec, mod=16):
+    if mod==0: return vec
+    padlen = mod - len(vec) % mod;
     return vec + [padlen]*padlen
 
 def unpad(vec):
